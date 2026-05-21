@@ -1567,9 +1567,120 @@
       </div>
 
       <div class="field">
-        <label>VAD Silence Threshold (ms) — <span id="s-silence-val">700</span></label>
-        <input type="range" id="s-silence" min="300" max="2000" step="100" value="700"
+        <label>Realtime 2.0 model</label>
+        <input id="s-model" value="gpt-realtime-2" disabled />
+        <div class="hint">Pinned to OpenAI Realtime 2.0. The app will refuse legacy beta models.</div>
+      </div>
+
+      <div class="field">
+        <label>Voice speed — <span id="s-speed-val">1.00</span>x</label>
+        <input type="range" id="s-speed" min="0.25" max="4" step="0.05" value="1"
+          oninput="document.getElementById('s-speed-val').textContent=Number(this.value).toFixed(2)" />
+      </div>
+
+      <div class="field">
+        <label>Tool choice</label>
+        <select id="s-tool-choice">
+          <option value="auto">Auto</option>
+          <option value="none">None</option>
+          <option value="required">Required</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Max response output tokens</label>
+        <input id="s-max-output-tokens" value="inf" placeholder="inf or a number" />
+      </div>
+
+      <div class="field">
+        <label>Input transcription model</label>
+        <select id="s-transcription-model">
+          <option value="gpt-4o-transcribe">gpt-4o-transcribe</option>
+          <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe</option>
+          <option value="whisper-1">whisper-1</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Transcription language hint</label>
+        <input id="s-transcription-language" placeholder="Optional, e.g. en" />
+      </div>
+
+      <div class="field">
+        <label>Transcription prompt hint</label>
+        <textarea id="s-transcription-prompt" placeholder="Optional words, names, acronyms, or style hints for transcription"></textarea>
+      </div>
+
+      <div class="field">
+        <label>Input noise reduction</label>
+        <select id="s-noise-reduction">
+          <option value="near_field">Near field</option>
+          <option value="far_field">Far field</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Turn detection</label>
+        <select id="s-turn-detection-type">
+          <option value="server_vad">Server VAD</option>
+          <option value="semantic_vad">Semantic VAD</option>
+          <option value="off">Off/manual</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>VAD threshold — <span id="s-vad-threshold-val">0.50</span></label>
+        <input type="range" id="s-vad-threshold" min="0" max="1" step="0.01" value="0.5"
+          oninput="document.getElementById('s-vad-threshold-val').textContent=Number(this.value).toFixed(2)" />
+      </div>
+
+      <div class="field">
+        <label>VAD prefix padding (ms) — <span id="s-prefix-padding-val">300</span></label>
+        <input type="range" id="s-prefix-padding" min="0" max="2000" step="50" value="300"
+          oninput="document.getElementById('s-prefix-padding-val').textContent=this.value" />
+      </div>
+
+      <div class="field">
+        <label>VAD silence duration (ms) — <span id="s-silence-val">700</span></label>
+        <input type="range" id="s-silence" min="100" max="3000" step="50" value="700"
           oninput="document.getElementById('s-silence-val').textContent=this.value" />
+      </div>
+
+      <div class="field">
+        <label>Idle timeout (ms)</label>
+        <input id="s-idle-timeout" type="number" min="0" max="600000" step="500" value="0" />
+        <div class="hint">0 leaves idle timeout unset.</div>
+      </div>
+
+      <div class="field">
+        <label>Semantic VAD eagerness</label>
+        <select id="s-vad-eagerness">
+          <option value="auto">Auto</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Realtime response behavior</label>
+        <div class="toggles">
+          <div class="toggle-chip on" id="t-create-response" onclick="toggleRealtimeFlag('createResponse')">Create response after turn</div>
+          <div class="toggle-chip on" id="t-interrupt-response" onclick="toggleRealtimeFlag('interruptResponse')">Allow barge-in interruption</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Include fields</label>
+        <textarea id="s-include" placeholder="Optional comma-separated include paths"></textarea>
+      </div>
+
+      <div class="field">
+        <label>Raw Realtime session JSON override</label>
+        <textarea id="s-session-json" placeholder='Optional JSON merged into session, e.g. {"tracing":"auto"}'></textarea>
+        <div class="hint">Escape hatch for any new Realtime 2.0 setting OpenAI adds before the UI catches up. Merged server-side after the structured controls.</div>
       </div>
 
       <div class="field">
@@ -1672,10 +1783,32 @@ Working with Jimmy:
       light: "Light",
     };
 
+    const DEFAULT_REALTIME_SETTINGS = {
+      model: "gpt-realtime-2",
+      outputSpeed: 1,
+      toolChoice: "auto",
+      maxOutputTokens: "inf",
+      transcriptionModel: "gpt-4o-transcribe",
+      transcriptionLanguage: "",
+      transcriptionPrompt: "",
+      noiseReduction: "near_field",
+      turnDetectionType: "server_vad",
+      vadThreshold: 0.5,
+      prefixPaddingMs: 300,
+      silenceDurationMs: 700,
+      idleTimeoutMs: 0,
+      vadEagerness: "auto",
+      createResponse: true,
+      interruptResponse: true,
+      include: "",
+      sessionJson: "",
+    };
+
     let settings = {
       voice: "alloy",
       timezone: "America/Chicago",
       silenceMs: 700,
+      realtime: { ...DEFAULT_REALTIME_SETTINGS },
       theme: "light",
       tools: DEMO_AGENT?.toolGroups || { gmail: true, gcal: true, "outlook-mail": true, "outlook-cal": true, web: true },
       quickActionsEnabled: true,
@@ -1685,6 +1818,23 @@ Working with Jimmy:
       autoApproveSelfCalendar: false,
       prompt: DEFAULT_PROMPT,
     };
+
+    function normalizeRealtimeSettings(value = {}) {
+      const rt = { ...DEFAULT_REALTIME_SETTINGS, ...(value || {}) };
+      rt.model = "gpt-realtime-2";
+      rt.outputSpeed = Math.min(4, Math.max(0.25, Number(rt.outputSpeed || 1)));
+      rt.vadThreshold = Math.min(1, Math.max(0, Number(rt.vadThreshold ?? 0.5)));
+      rt.prefixPaddingMs = Math.min(2000, Math.max(0, parseInt(rt.prefixPaddingMs ?? 300, 10)));
+      rt.silenceDurationMs = Math.min(3000, Math.max(100, parseInt(rt.silenceDurationMs ?? rt.silenceMs ?? 700, 10)));
+      rt.idleTimeoutMs = Math.min(600000, Math.max(0, parseInt(rt.idleTimeoutMs || 0, 10)));
+      rt.createResponse = rt.createResponse !== false;
+      rt.interruptResponse = rt.interruptResponse !== false;
+      return rt;
+    }
+
+    function demoSettingsKey() {
+      return `va-demo-settings:${DEMO_AGENT?.id || "default"}`;
+    }
 
     function setTheme(theme) {
       const selected = THEME_OPTIONS.includes((theme || "").toLowerCase()) ? (theme || THEME_OPTIONS[0]).toLowerCase() : THEME_OPTIONS[0];
@@ -1712,16 +1862,23 @@ Working with Jimmy:
       if (DEMO_AGENT) {
         settings.prompt = DEMO_AGENT.prompt || DEFAULT_PROMPT;
         settings.tools = DEMO_AGENT.toolGroups || {};
-        settings.theme = localStorage.getItem("va-demo-theme") || "light";
+        try {
+          const savedDemo = JSON.parse(localStorage.getItem(demoSettingsKey()) || "{}");
+          settings = { ...settings, ...savedDemo, tools: DEMO_AGENT.toolGroups || settings.tools, realtime: normalizeRealtimeSettings(savedDemo.realtime || settings.realtime) };
+        } catch (_) {
+          settings.realtime = normalizeRealtimeSettings(settings.realtime);
+        }
+        settings.theme = localStorage.getItem("va-demo-theme") || settings.theme || "light";
         setTheme(settings.theme);
         refreshMainThemeToggle(settings.theme);
         applyDemoAgent();
+        applySettingsToUI();
         return;
       }
       const saved = localStorage.getItem("va-settings");
       if (saved) {
         const parsed = JSON.parse(saved);
-        settings = { ...settings, ...parsed, tools: { ...settings.tools, ...(parsed.tools || {}) } };
+        settings = { ...settings, ...parsed, tools: { ...settings.tools, ...(parsed.tools || {}) }, realtime: normalizeRealtimeSettings(parsed.realtime || parsed.realtimeSettings || settings.realtime) };
         if (settings.tools.web === undefined) settings.tools.web = true;
         if (!THEME_OPTIONS.includes(settings.theme)) settings.theme = "dark";
         // Restore Gmail/Google as first-class tools once the server-side gog
@@ -1782,11 +1939,33 @@ Working with Jimmy:
     }
 
     function applySettingsToUI() {
-      if (DEMO_AGENT) { applyDemoAgent(); return; }
+      if (DEMO_AGENT) applyDemoAgent();
+      settings.realtime = normalizeRealtimeSettings(settings.realtime);
       document.getElementById("s-voice").value = settings.voice;
       document.getElementById("s-timezone").value = settings.timezone;
-      document.getElementById("s-silence").value = settings.silenceMs;
-      document.getElementById("s-silence-val").textContent = settings.silenceMs;
+      document.getElementById("s-model").value = "gpt-realtime-2";
+      document.getElementById("s-speed").value = settings.realtime.outputSpeed;
+      document.getElementById("s-speed-val").textContent = Number(settings.realtime.outputSpeed).toFixed(2);
+      document.getElementById("s-tool-choice").value = settings.realtime.toolChoice;
+      document.getElementById("s-max-output-tokens").value = settings.realtime.maxOutputTokens;
+      document.getElementById("s-transcription-model").value = settings.realtime.transcriptionModel;
+      document.getElementById("s-transcription-language").value = settings.realtime.transcriptionLanguage || "";
+      document.getElementById("s-transcription-prompt").value = settings.realtime.transcriptionPrompt || "";
+      document.getElementById("s-noise-reduction").value = settings.realtime.noiseReduction;
+      document.getElementById("s-turn-detection-type").value = settings.realtime.turnDetectionType;
+      document.getElementById("s-vad-threshold").value = settings.realtime.vadThreshold;
+      document.getElementById("s-vad-threshold-val").textContent = Number(settings.realtime.vadThreshold).toFixed(2);
+      document.getElementById("s-prefix-padding").value = settings.realtime.prefixPaddingMs;
+      document.getElementById("s-prefix-padding-val").textContent = settings.realtime.prefixPaddingMs;
+      document.getElementById("s-silence").value = settings.realtime.silenceDurationMs;
+      document.getElementById("s-silence-val").textContent = settings.realtime.silenceDurationMs;
+      document.getElementById("s-idle-timeout").value = settings.realtime.idleTimeoutMs;
+      document.getElementById("s-vad-eagerness").value = settings.realtime.vadEagerness;
+      document.getElementById("s-include").value = settings.realtime.include || "";
+      document.getElementById("s-session-json").value = settings.realtime.sessionJson || "";
+      document.getElementById("t-create-response").className = "toggle-chip" + (settings.realtime.createResponse ? " on" : "");
+      document.getElementById("t-interrupt-response").className = "toggle-chip" + (settings.realtime.interruptResponse ? " on" : "");
+      settings.silenceMs = settings.realtime.silenceDurationMs;
       const themeInput = document.getElementById("s-theme");
       const selectedTheme = THEME_OPTIONS.includes(settings.theme) ? settings.theme : "dark";
       if (themeInput) themeInput.value = selectedTheme;
@@ -1829,6 +2008,14 @@ Working with Jimmy:
       };
       const el = document.getElementById(map[key]);
       if (el) el.className = "toggle-chip" + (settings[key] ? " on" : "");
+    }
+
+    function toggleRealtimeFlag(key) {
+      settings.realtime = normalizeRealtimeSettings(settings.realtime);
+      settings.realtime[key] = !settings.realtime[key];
+      const map = { createResponse: "t-create-response", interruptResponse: "t-interrupt-response" };
+      const el = document.getElementById(map[key]);
+      if (el) el.className = "toggle-chip" + (settings.realtime[key] ? " on" : "");
     }
 
     const KNOWN_EMAIL_ALIASES = { jimmy: "jimmy@gopherdrones.com", jimasaur: "jimmy@gopherdrones.com", me: "jimmy@gopherdrones.com", holly: "holly@gopherdrones.com", holli: "holly@gopherdrones.com" };
@@ -1906,12 +2093,33 @@ Working with Jimmy:
     function saveSettings() {
       settings.voice = document.getElementById("s-voice").value;
       settings.timezone = document.getElementById("s-timezone").value;
-      settings.silenceMs = parseInt(document.getElementById("s-silence").value);
-      settings.theme = document.getElementById("s-theme").value || "default";
+      settings.realtime = normalizeRealtimeSettings({
+        model: "gpt-realtime-2",
+        outputSpeed: document.getElementById("s-speed").value,
+        toolChoice: document.getElementById("s-tool-choice").value,
+        maxOutputTokens: document.getElementById("s-max-output-tokens").value.trim() || "inf",
+        transcriptionModel: document.getElementById("s-transcription-model").value,
+        transcriptionLanguage: document.getElementById("s-transcription-language").value.trim(),
+        transcriptionPrompt: document.getElementById("s-transcription-prompt").value.trim(),
+        noiseReduction: document.getElementById("s-noise-reduction").value,
+        turnDetectionType: document.getElementById("s-turn-detection-type").value,
+        vadThreshold: document.getElementById("s-vad-threshold").value,
+        prefixPaddingMs: document.getElementById("s-prefix-padding").value,
+        silenceDurationMs: document.getElementById("s-silence").value,
+        idleTimeoutMs: document.getElementById("s-idle-timeout").value,
+        vadEagerness: document.getElementById("s-vad-eagerness").value,
+        createResponse: settings.realtime?.createResponse !== false,
+        interruptResponse: settings.realtime?.interruptResponse !== false,
+        include: document.getElementById("s-include").value.trim(),
+        sessionJson: document.getElementById("s-session-json").value.trim(),
+      });
+      settings.silenceMs = settings.realtime.silenceDurationMs;
+      settings.theme = document.getElementById("s-theme").value || "light";
       setTheme(settings.theme);
       settings.prompt = document.getElementById("s-prompt").value;
       settings.quickAllowlist = Array.from(new Set([...resolveEmailList(document.getElementById("s-quick-allowlist").value), ...PINNED_QUICK_ALLOWLIST])).sort();
-      localStorage.setItem("va-settings", JSON.stringify(settings));
+      if (DEMO_AGENT) localStorage.setItem(demoSettingsKey(), JSON.stringify(settings));
+      else localStorage.setItem("va-settings", JSON.stringify(settings));
       fetch('/preferences', {
         method: 'POST',
         credentials: 'include',
@@ -2582,7 +2790,8 @@ Assistant: ${lastAssistant.slice(0, 110)}`,
           body: JSON.stringify({
             voice: settings.voice,
             timezone: settings.timezone,
-            silenceMs: settings.silenceMs,
+            silenceMs: settings.realtime?.silenceDurationMs || settings.silenceMs,
+            realtime: normalizeRealtimeSettings(settings.realtime),
             prompt: settings.prompt,
             tools: settings.tools,
             lastConversation: DEMO_AGENT ? "" : lastConversationText,

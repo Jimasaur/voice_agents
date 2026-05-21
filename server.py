@@ -203,10 +203,145 @@ class SessionRequest(BaseModel):
     voice: str = "alloy"
     timezone: str = "America/Chicago"
     silenceMs: int = 700
+    realtime: dict = {}
     prompt: str = ""
     tools: dict = {}
     lastConversation: str = ""
     demoId: str = ""
+
+
+def _clamp_float(value, default: float, low: float, high: float) -> float:
+    try:
+        return max(low, min(high, float(value)))
+    except Exception:
+        return default
+
+
+def _clamp_int(value, default: int, low: int, high: int) -> int:
+    try:
+        return max(low, min(high, int(value)))
+    except Exception:
+        return default
+
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    for key, value in (override or {}).items():
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            _deep_merge(base[key], value)
+        else:
+            base[key] = value
+    return base
+
+
+def _parse_session_json(value) -> dict:
+    if not value:
+        return {}
+    if isinstance(value, dict):
+        return value
+    try:
+        parsed = json.loads(str(value))
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception as exc:
+        log.warning("Ignoring invalid Realtime session JSON override: %s", exc)
+        return {}
+
+
+def _build_realtime_session_config(
+    *,
+    instructions: str,
+    tools: list,
+    voice: str,
+    silence_ms: int,
+    realtime: dict | None = None,
+) -> dict:
+    """Build a GA Realtime 2.0 session object from UI-exposed settings."""
+    rt = realtime if isinstance(realtime, dict) else {}
+    model = "gpt-realtime-2"
+    tool_choice = str(rt.get("toolChoice") or rt.get("tool_choice") or "auto").strip()
+    if tool_choice not in {"auto", "none", "required"}:
+        tool_choice = "auto"
+
+    max_tokens_raw = rt.get("maxOutputTokens", rt.get("max_output_tokens", "inf"))
+    if isinstance(max_tokens_raw, str) and max_tokens_raw.strip().lower() == "inf":
+        max_output_tokens = "inf"
+    else:
+        max_output_tokens = _clamp_int(max_tokens_raw, 4096, 1, 200000)
+
+    transcription_model = str(rt.get("transcriptionModel") or "gpt-4o-transcribe").strip()
+    transcription = None
+    if transcription_model and transcription_model != "off":
+        transcription = {"model": transcription_model}
+        language = str(rt.get("transcriptionLanguage") or "").strip()
+        prompt = str(rt.get("transcriptionPrompt") or "").strip()
+        if language:
+            transcription["language"] = language
+        if prompt:
+            transcription["prompt"] = prompt
+
+    noise_type = str(rt.get("noiseReduction") or "near_field").strip()
+    noise_reduction = None if noise_type == "off" else {"type": noise_type if noise_type in {"near_field", "far_field"} else "near_field"}
+
+    turn_type = str(rt.get("turnDetectionType") or "server_vad").strip()
+    turn_detection = None
+    create_response = bool(rt.get("createResponse", True))
+    interrupt_response = bool(rt.get("interruptResponse", True))
+    if turn_type == "semantic_vad":
+        turn_detection = {
+            "type": "semantic_vad",
+            "create_response": create_response,
+            "interrupt_response": interrupt_response,
+        }
+        eagerness = str(rt.get("vadEagerness") or "auto").strip()
+        if eagerness in {"low", "medium", "high", "auto"}:
+            turn_detection["eagerness"] = eagerness
+    elif turn_type != "off":
+        turn_detection = {
+            "type": "server_vad",
+            "threshold": _clamp_float(rt.get("vadThreshold", 0.5), 0.5, 0, 1),
+            "prefix_padding_ms": _clamp_int(rt.get("prefixPaddingMs", 300), 300, 0, 2000),
+            "silence_duration_ms": _clamp_int(rt.get("silenceDurationMs", silence_ms), silence_ms, 100, 3000),
+            "create_response": create_response,
+            "interrupt_response": interrupt_response,
+        }
+        idle_timeout = _clamp_int(rt.get("idleTimeoutMs", 0), 0, 0, 600000)
+        if idle_timeout:
+            turn_detection["idle_timeout_ms"] = idle_timeout
+
+    input_audio = {"turn_detection": turn_detection}
+    if transcription is not None:
+        input_audio["transcription"] = transcription
+    if noise_reduction is not None:
+        input_audio["noise_reduction"] = noise_reduction
+
+    session = {
+        "type": "realtime",
+        "model": model,
+        "instructions": instructions,
+        "tools": tools,
+        "tool_choice": tool_choice,
+        "max_output_tokens": max_output_tokens,
+        "audio": {
+            "input": input_audio,
+            "output": {
+                "voice": str(voice or "alloy").strip() or "alloy",
+                "speed": _clamp_float(rt.get("outputSpeed", 1), 1, 0.25, 4),
+            },
+        },
+    }
+
+    include_raw = rt.get("include")
+    if include_raw:
+        include = [part.strip() for part in str(include_raw).replace("\n", ",").split(",") if part.strip()]
+        if include:
+            session["include"] = include
+
+    _deep_merge(session, _parse_session_json(rt.get("sessionJson")))
+    # Keep app-owned guardrails intact even when the raw JSON escape hatch is used.
+    session["type"] = "realtime"
+    session["model"] = model
+    session["instructions"] = instructions
+    session["tools"] = tools
+    return session
 
 
 class ToolCallRequest(BaseModel):
@@ -315,28 +450,17 @@ async def create_session(request: Request, req: SessionRequest | None = None):
     if model != "gpt-realtime-2":
         log.warning("Unsupported/legacy Realtime model %s requested; forcing gpt-realtime-2 GA", model)
         model = "gpt-realtime-2"
-    turn_detection = {
-        "type": "server_vad",
-        "threshold": 0.5,
-        "prefix_padding_ms": 300,
-        "silence_duration_ms": demo_settings["silenceMs"],
-    }
+    session_config = _build_realtime_session_config(
+        instructions=instructions,
+        tools=active_definitions,
+        voice=req.voice or demo_settings["voice"],
+        silence_ms=req.silenceMs or demo_settings["silenceMs"],
+        realtime=req.realtime,
+    )
     log.info("Realtime demo session %s active tools: %s", demo_id, sorted(enabled_tools))
     try:
         async with httpx.AsyncClient() as client:
-            payload = {
-                "session": {
-                    "type": "realtime",
-                    "model": model,
-                    "instructions": instructions,
-                    "tools": active_definitions,
-                    "tool_choice": "auto",
-                    "audio": {
-                        "input": {"transcription": {"model": "gpt-4o-transcribe"}, "turn_detection": turn_detection},
-                        "output": {"voice": demo_settings["voice"]},
-                    },
-                }
-            }
+            payload = {"session": session_config}
             r = await client.post(
                 "https://api.openai.com/v1/realtime/client_secrets",
                 headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},

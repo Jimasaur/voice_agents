@@ -1,0 +1,36 @@
+# Secrets / local auth state
+.env
+.env.*
+!.env.example
+.ms_token_cache.json
+tokens/
+prefs/
+transcripts/
+learning_state/
+sidecar_state/
+action_receipts/
+action_approvals/
+demo_agent_settings.json
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Runtime outputs
+*.sqlite3
+*.log
+daily_brief.log
+*.bak
+*.bak-*
+*.bak.*
+backups/
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/

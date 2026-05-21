@@ -2609,9 +2609,8 @@ Assistant: ${lastAssistant.slice(0, 110)}`,
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
-        const realtimeModel = encodeURIComponent(session.session?.model || session.model || "gpt-realtime-2");
         const sdpRes = await fetch(
-          `https://api.openai.com/v1/realtime?model=${realtimeModel}`,
+          "https://api.openai.com/v1/realtime/calls",
           {
             method: "POST",
             headers: { Authorization: `Bearer ${ephemeralKey}`, "Content-Type": "application/sdp" },

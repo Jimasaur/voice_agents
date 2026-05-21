@@ -44,8 +44,6 @@ PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://voice.jimsbots.com"
 
 REALTIME_MODEL_OPTIONS = [
     ("gpt-realtime-2", "GPT Realtime 2.0"),
-    ("gpt-realtime-2025-08-28", "GPT Realtime pinned 2025-08-28"),
-    ("gpt-4o-realtime-preview", "GPT-4o Realtime preview"),
 ]
 
 RATE_LIMIT_SESSION = int(os.environ.get("RATE_LIMIT_SESSION", "20"))
@@ -314,6 +312,9 @@ async def create_session(request: Request, req: SessionRequest | None = None):
     enabled_tools = set(demo_config.get("tools") or [])
     active_definitions = [t for t in DEMO_TOOL_DEFINITIONS if t.get("name") in enabled_tools]
     model = demo_settings["model"]
+    if model != "gpt-realtime-2":
+        log.warning("Unsupported/legacy Realtime model %s requested; forcing gpt-realtime-2 GA", model)
+        model = "gpt-realtime-2"
     turn_detection = {
         "type": "server_vad",
         "threshold": 0.5,
@@ -323,47 +324,32 @@ async def create_session(request: Request, req: SessionRequest | None = None):
     log.info("Realtime demo session %s active tools: %s", demo_id, sorted(enabled_tools))
     try:
         async with httpx.AsyncClient() as client:
-            if model == "gpt-realtime-2":
-                payload = {
-                    "session": {
-                        "type": "realtime",
-                        "model": model,
-                        "instructions": instructions,
-                        "tools": active_definitions,
-                        "tool_choice": "auto",
-                        "audio": {
-                            "input": {"transcription": {"model": "gpt-4o-transcribe"}, "turn_detection": turn_detection},
-                            "output": {"voice": demo_settings["voice"]},
-                        },
-                    }
-                }
-                r = await client.post(
-                    "https://api.openai.com/v1/realtime/client_secrets",
-                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                    json=payload,
-                    timeout=15,
-                )
-            else:
-                payload = {
+            payload = {
+                "session": {
+                    "type": "realtime",
                     "model": model,
-                    "voice": demo_settings["voice"],
                     "instructions": instructions,
                     "tools": active_definitions,
                     "tool_choice": "auto",
-                    "input_audio_transcription": {"model": "gpt-4o-transcribe"},
-                    "turn_detection": turn_detection,
+                    "audio": {
+                        "input": {"transcription": {"model": "gpt-4o-transcribe"}, "turn_detection": turn_detection},
+                        "output": {"voice": demo_settings["voice"]},
+                    },
                 }
-                r = await client.post(
-                    "https://api.openai.com/v1/realtime/sessions",
-                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json", "OpenAI-Beta": "realtime=v1"},
-                    json=payload,
-                    timeout=15,
-                )
+            }
+            r = await client.post(
+                "https://api.openai.com/v1/realtime/client_secrets",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json=payload,
+                timeout=15,
+            )
         r.raise_for_status()
         data = r.json()
         if "client_secret" not in data and data.get("value"):
             data["client_secret"] = {"value": data["value"], "expires_at": data.get("expires_at")}
         data.setdefault("model", model)
+        if isinstance(data.get("session"), dict):
+            data["session"]["model"] = model
         return JSONResponse(data)
     except httpx.HTTPStatusError as exc:
         detail = exc.response.text[:800] if exc.response is not None else str(exc)

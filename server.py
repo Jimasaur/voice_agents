@@ -99,6 +99,7 @@ def _demo_agent_options() -> list[dict]:
         "medical_hypertension_checkup": "Outbound blood pressure check-in with risk capture.",
         "medical_annual_wellness": "Annual wellness reminder with a Thursday 8 AM Duluth scheduling offer.",
         "service_desk": "Collect IT incidents and service requests into demo service desk tickets.",
+        "dlp_posture_consultant": "Ethnographic DLP discovery interview that tailors questions by business area.",
     }
     return [
         {
@@ -110,7 +111,7 @@ def _demo_agent_options() -> list[dict]:
             "href": f"/demo/{demo_id}",
         }
         for demo_id, config in DEMO_AGENTS.items()
-        if demo_id.startswith("medical_") or demo_id == "service_desk"
+        if demo_id.startswith("medical_") or demo_id in {"service_desk", "dlp_posture_consultant"}
     ]
 
 

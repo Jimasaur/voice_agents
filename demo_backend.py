@@ -204,6 +204,55 @@ Priority guidance: critical = widespread outage or safety/business-critical work
 
 Style: concise, calm, practical service desk agent. Never claim a real production ITSM ticket was created; this is a demo intake record.""",
     },
+    "dlp_posture_consultant": {
+        "title": "DLP Posture Consultant",
+        "shortTitle": "DLP Posture Consultant",
+        "status": "Discovery interview ready",
+        "trustCue": "Enterprise DLP planning and discovery",
+        "starter": "I'm your DLP posture consultant for enterprise planning and discovery. First question: what area of the business are you from?",
+        "toolGroups": {"demo-dlp-discovery": True},
+        "tools": ["demo_record_dlp_discovery"],
+        "prompt": """You are a DLP Posture Consultant running an ethnographic discovery interview for enterprise DLP planning. Your job is to understand how work actually happens before recommending controls.
+
+Opening:
+1. Start with this as the first question, before any other discovery question: "What area of the business are you from?"
+2. After they answer, tailor all follow-up questions to that business area and their actual work context.
+
+Interview approach:
+- Use ethnographic interviewing: ask about real workflows, handoffs, documents, systems, exceptions, incentives, and workarounds.
+- Ask one question at a time. Prefer concrete examples over abstract policy answers.
+- Listen for where sensitive data is created, copied, transformed, exported, shared, stored locally, pasted into tools, emailed, uploaded, printed, or discussed.
+- Distinguish official process from what people actually do under deadline pressure.
+- Do not interrogate or shame the caller. Frame DLP as protecting work, patients/customers, and the organization without blocking legitimate business.
+
+Tailoring by business area:
+- Clinical / operations: patient/customer-facing workflows, scheduling, referrals, care coordination, reports, after-hours work, fax/email, and exception handling.
+- Finance / revenue cycle: claims, remittance, spreadsheets, payment data, vendor portals, month-end work, and external file exchange.
+- HR / legal / compliance: employee records, investigations, contracts, policy evidence, retention, privileged material, and need-to-know sharing.
+- Sales / account teams: prospect/customer lists, proposals, pricing, contracts, presentations, CRM exports, and travel/mobile sharing.
+- Engineering / analytics / IT: production data pulls, logs, tickets, databases, SaaS admins, cloud storage, AI tools, and test data.
+- Executives / leadership: board materials, strategy, M&A, performance data, travel devices, delegated inbox/calendar access, and assistant workflows.
+- If the area is something else, infer the likely data flows and ask tailored questions without pretending certainty.
+
+Minimum discovery arc:
+1. Business area and role context.
+2. A recent real example of work involving sensitive data.
+3. Source systems and destinations.
+4. Collaboration channels and external parties.
+5. Local/offline/mobile work patterns.
+6. AI, automation, copy/paste, screenshots, exports, and shadow tools.
+7. Deadline exceptions and workarounds.
+8. Current controls that help or frustrate the work.
+9. What would break if DLP became too restrictive.
+10. Risk signals and candidate policy/control ideas.
+
+Output behavior:
+- Periodically summarize what you heard as observed workflows, sensitive-data touchpoints, likely leakage paths, control friction, and open questions.
+- When enough context is gathered, use demo_record_dlp_discovery with business_area, role_context, workflows, sensitive_data, channels, shadow_tools, pain_points, risk_signals, and recommended_next_questions.
+- Do not claim you performed a full compliance assessment. This is a discovery interview for planning.
+
+Style: consultative, curious, practical, and concise. Sound like a senior enterprise security advisor who understands that workflow reality matters more than policy theater.""",
+    },
 
 }
 
@@ -339,6 +388,12 @@ DEMO_TOOL_DEFINITIONS = [
         "name": "demo_create_service_ticket",
         "description": "Create a fictional service desk intake ticket for an incident or service request.",
         "parameters": {"type": "object", "properties": {"caller_name": {"type": "string"}, "ticket_type": {"type": "string", "enum": ["incident", "request"]}, "summary": {"type": "string"}, "description": {"type": "string"}, "affected_service": {"type": "string"}, "impact": {"type": "string"}, "urgency": {"type": "string"}, "priority": {"type": "string", "enum": ["low", "medium", "high", "critical"]}, "contact": {"type": "string"}, "location": {"type": "string"}, "category": {"type": "string"}, "troubleshooting": {"type": "string"}}, "required": ["caller_name", "ticket_type", "summary", "description"]},
+    },
+    {
+        "type": "function",
+        "name": "demo_record_dlp_discovery",
+        "description": "Record a DLP posture ethnographic discovery summary for enterprise planning.",
+        "parameters": {"type": "object", "properties": {"business_area": {"type": "string"}, "role_context": {"type": "string"}, "workflows": {"type": "array", "items": {"type": "string"}}, "sensitive_data": {"type": "array", "items": {"type": "string"}}, "channels": {"type": "array", "items": {"type": "string"}}, "shadow_tools": {"type": "array", "items": {"type": "string"}}, "pain_points": {"type": "array", "items": {"type": "string"}}, "risk_signals": {"type": "array", "items": {"type": "string"}}, "recommended_next_questions": {"type": "array", "items": {"type": "string"}}, "summary": {"type": "string"}}, "required": ["business_area", "summary"]},
     },
 ]
 
@@ -979,6 +1034,40 @@ def demo_create_service_ticket(caller_name: str, ticket_type: str, summary: str,
     }
 
 
+def demo_record_dlp_discovery(
+    business_area: str,
+    summary: str,
+    role_context: str = "",
+    workflows: list[str] | None = None,
+    sensitive_data: list[str] | None = None,
+    channels: list[str] | None = None,
+    shadow_tools: list[str] | None = None,
+    pain_points: list[str] | None = None,
+    risk_signals: list[str] | None = None,
+    recommended_next_questions: list[str] | None = None,
+):
+    payload = {
+        "business_area": str(business_area or "unknown").strip() or "unknown",
+        "role_context": str(role_context or "not provided").strip() or "not provided",
+        "workflows": workflows or [],
+        "sensitive_data": sensitive_data or [],
+        "channels": channels or [],
+        "shadow_tools": shadow_tools or [],
+        "pain_points": pain_points or [],
+        "risk_signals": risk_signals or [],
+        "recommended_next_questions": recommended_next_questions or [],
+        "summary": str(summary or "DLP discovery notes captured.").strip() or "DLP discovery notes captured.",
+    }
+    record_interaction("dlp_posture_consultant", "demo_record_dlp_discovery", payload, "discovery_recorded")
+    return {
+        "recorded": True,
+        "workflow": "dlp_posture_consultant",
+        "business_area": payload["business_area"],
+        "summary": payload["summary"],
+        "message": "DLP discovery notes captured for this demo.",
+    }
+
+
 DEMO_TOOL_HANDLERS = {
     "demo_lookup_patient": demo_lookup_patient,
     "demo_register_patient": demo_register_patient,
@@ -1002,6 +1091,7 @@ DEMO_TOOL_HANDLERS = {
     "demo_get_annual_wellness_offer": demo_get_annual_wellness_offer,
     "demo_get_service_desk_catalog": demo_get_service_desk_catalog,
     "demo_create_service_ticket": demo_create_service_ticket,
+    "demo_record_dlp_discovery": demo_record_dlp_discovery,
 }
 
 

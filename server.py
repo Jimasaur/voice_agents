@@ -3,7 +3,7 @@ Standalone JimsBots demo voice-agent server.
 
 This app is intentionally demo-only. It does not import or expose Jimmy's
 personal Outlook/Gmail/calendar tools, OAuth login, token caches, or approval
-state from voice.jimmys.tools.
+state from voice.jimsbots.com.
 """
 from __future__ import annotations
 

@@ -1730,7 +1730,7 @@ holly@gopherdrones.com"></textarea>
     // ── Defaults ──────────────────────────────────────────────
     const DEMO_AGENT = window.__demoAgent || null;
     const PROMPT_VERSION = 7;
-    const DEFAULT_PROMPT = `You are Jimmy's personal voice assistant for voice.jimmys.tools.
+    const DEFAULT_PROMPT = `You are Jimmy's personal voice assistant for voice.jimsbots.com.
 
 Core style:
 - Speak like a capable teammate in a live voice conversation: direct, calm, practical, lightly warm.
@@ -2904,8 +2904,8 @@ Assistant: ${lastAssistant.slice(0, 110)}`,
       const title = `Healthcare Center: ${appt.appointment_type || "Appointment"}`;
       const description = `Appointment summary for ${patientName || "caller"}.`;
       const ics = [
-        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//voice.jimmys.tools//Healthcare Demo//EN", "BEGIN:VEVENT",
-        `UID:demo-${appt.id || Date.now()}@voice.jimmys.tools`, `DTSTAMP:${stamp(new Date())}`, `DTSTART:${stamp(start)}`, `DTEND:${stamp(end)}`,
+        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//voice.jimsbots.com//Healthcare Demo//EN", "BEGIN:VEVENT",
+        `UID:demo-${appt.id || Date.now()}@voice.jimsbots.com`, `DTSTAMP:${stamp(new Date())}`, `DTSTART:${stamp(start)}`, `DTEND:${stamp(end)}`,
         `SUMMARY:${escapeIcsText(title)}`, `LOCATION:${escapeIcsText(appt.location || "Healthcare Center")}`, `DESCRIPTION:${escapeIcsText(description)}`,
         "END:VEVENT", "END:VCALENDAR"
       ].join("\r\n");

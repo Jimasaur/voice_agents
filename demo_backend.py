@@ -1,4 +1,4 @@
-"""Healthcare demo backend for voice.jimmys.tools.
+"""Healthcare demo backend for voice.jimsbots.com.
 
 Uses seeded/non-production data. Do not use for real PHI, scheduling, or benefits work.
 """
@@ -1120,7 +1120,7 @@ def render_admin_html() -> str:
         return "\n".join(out)
     return f"""<!doctype html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'><meta http-equiv='refresh' content='8'><title>Healthcare Admin</title>
 <style>body{{margin:0;background:#080d15;color:#edf3fb;font-family:Inter,system-ui,sans-serif}}main{{max-width:1280px;margin:0 auto;padding:28px}}h1{{font-size:1.4rem}}.muted{{color:#92a0b4}}.grid{{display:grid;gap:18px}}section{{border:1px solid #263246;background:#101827;border-radius:18px;padding:16px;box-shadow:0 18px 60px #0005;overflow:auto}}table{{width:100%;border-collapse:collapse;font-size:.82rem}}th,td{{border-bottom:1px solid #263246;padding:8px;text-align:left;vertical-align:top}}th{{color:#9cc7ff;font-weight:650}}button{{border:1px solid #49d3b455;background:#49d3b414;color:#a7ffe9;border-radius:999px;padding:8px 12px;cursor:pointer}}.pill{{display:inline-block;border:1px solid #ffffff18;border-radius:999px;padding:5px 9px;color:#aeb8c8}}.escape{{border-color:#ff7d8a55;background:#2a1218}}</style></head>
-<body><main><p class='pill'>Seeded data · auto-refresh 8s</p><h1>Healthcare Admin</h1><p class='muted'>Seeded patients, appointments, insurance records, realtime risk analysis, escalation receipts, and voice workflow outcomes for voice.jimmys.tools.</p>
+<body><main><p class='pill'>Seeded data · auto-refresh 8s</p><h1>Healthcare Admin</h1><p class='muted'>Seeded patients, appointments, insurance records, realtime risk analysis, escalation receipts, and voice workflow outcomes for voice.jimsbots.com.</p>
 <form method='post' action='/admin/demo/reset' onsubmit='return confirm("Reset seeded seed data?")'><button>Reset seed data</button></form><div class='grid'>
 <section class='escape'><h2>Realtime risk / escalation monitor</h2><p class='muted'>Escape logic: human triage must be paged for high/critical risk, urgent symptoms, medication safety issues, post-discharge deterioration, caller confusion/distress, or ambiguity needing clinical judgment.</p><table><thead><tr><th>ID</th><th>Time</th><th>Workflow</th><th>Patient</th><th>Risk</th><th>Human?</th><th>Factors</th><th>Concern</th><th>Escape logic</th></tr></thead><tbody>{rows(snap['risk_events'], ['id','ts','workflow','patient_name','risk_level','human_required','risk_factors_json','concern','escape_logic'])}</tbody></table></section>
 <section><h2>Human engagement / pages</h2><table><thead><tr><th>ID</th><th>Time</th><th>Workflow</th><th>Patient</th><th>Risk</th><th>Urgency</th><th>Reason</th><th>Status</th></tr></thead><tbody>{rows(snap['escalations'], ['id','ts','workflow','patient_name','risk_level','urgency','reason','status'])}</tbody></table></section>
